@@ -35,6 +35,7 @@ export interface StatusUpdate {
   durationMs?: number;
   autoRun: boolean;
   inlineValues: boolean;
+  isRunning: boolean;
 }
 
 type StatusListener = (update: StatusUpdate) => void;
@@ -54,6 +55,8 @@ export class ScratchpadRunner implements vscode.Disposable {
   private showOutputOnRun = true;
   private moduleKindPref: ModuleKindSetting = 'auto';
   private nodePath = 'node';
+  private confirmStopAfterMs = 3000;
+  private runStartedAt: number | undefined;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.applyConfig(getScratchpadConfig());
@@ -90,6 +93,7 @@ export class ScratchpadRunner implements vscode.Disposable {
     this.showOutputOnRun = config.showOutputOnRun;
     this.moduleKindPref = config.moduleKind;
     this.nodePath = config.nodePath;
+    this.confirmStopAfterMs = config.confirmStopAfterMs;
     this.decorations.setEnabled(config.inlineValues);
     this.errors.setEnabled(config.inlineErrors);
 
@@ -105,10 +109,15 @@ export class ScratchpadRunner implements vscode.Disposable {
       status: this.lastStatus,
       autoRun: this.autoRun,
       inlineValues: this.decorations.isEnabled(),
+      isRunning: this.isRunning(),
     });
     return {
       dispose: () => this.statusListeners.delete(listener),
     };
+  }
+
+  isRunning(): boolean {
+    return !!this.child && !this.child.killed;
   }
 
   isAutoRunEnabled(): boolean {
@@ -178,6 +187,7 @@ export class ScratchpadRunner implements vscode.Disposable {
       clearOutput();
     }
     appendOutputLine('— running —');
+    this.runStartedAt = Date.now();
     this.emitStatus('running');
 
     const started = Date.now();
@@ -369,17 +379,44 @@ export class ScratchpadRunner implements vscode.Disposable {
     };
   }
 
-  stop(): void {
+  stop(): boolean {
     this.runGeneration += 1;
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = undefined;
     }
     const killed = this.stopChild();
+    this.runStartedAt = undefined;
     if (killed) {
       appendOutputLine('— stopped —');
       this.emitStatus('idle');
+      return true;
     }
+    this.emitStatus(this.lastStatus === 'running' ? 'idle' : this.lastStatus);
+    return false;
+  }
+
+  async stopInteractive(): Promise<void> {
+    if (!this.isRunning()) {
+      vscode.window.showInformationMessage(
+        'Node Scratchpad: nothing is running.'
+      );
+      return;
+    }
+
+    const elapsed = Date.now() - (this.runStartedAt ?? Date.now());
+    if (this.confirmStopAfterMs > 0 && elapsed >= this.confirmStopAfterMs) {
+      const seconds = Math.max(1, Math.round(elapsed / 1000));
+      const choice = await vscode.window.showWarningMessage(
+        `Stop Node Scratchpad? It has been running for ${seconds}s.`,
+        'Stop'
+      );
+      if (choice !== 'Stop') {
+        return;
+      }
+    }
+
+    this.stop();
   }
 
   private stopChild(): boolean {
@@ -394,11 +431,15 @@ export class ScratchpadRunner implements vscode.Disposable {
 
   private emitStatus(status: RunnerStatus, durationMs?: number): void {
     this.lastStatus = status;
+    if (status !== 'running') {
+      this.runStartedAt = this.isRunning() ? this.runStartedAt : undefined;
+    }
     const update: StatusUpdate = {
       status,
       durationMs,
       autoRun: this.autoRun,
       inlineValues: this.decorations.isEnabled(),
+      isRunning: this.isRunning() || status === 'running',
     };
     for (const listener of this.statusListeners) {
       listener(update);

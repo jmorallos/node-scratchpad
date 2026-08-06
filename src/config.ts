@@ -11,6 +11,8 @@ export interface ScratchpadConfig {
   showOutputOnRun: boolean;
   moduleKind: ModuleKindSetting;
   nodePath: string;
+  runOnOpen: boolean;
+  confirmStopAfterMs: number;
 }
 
 const SECTION = 'nodeScratchpad';
@@ -20,6 +22,7 @@ export function getScratchpadConfig(): ScratchpadConfig {
   const delay = cfg.get<number>('autoRunDelay', 400);
   const moduleKind = cfg.get<ModuleKindSetting>('moduleKind', 'auto');
   const nodePath = cfg.get<string>('nodePath', 'node').trim() || 'node';
+  const confirmStopAfterMs = cfg.get<number>('confirmStopAfterMs', 3000);
 
   return {
     autoRun: cfg.get<boolean>('autoRun', true),
@@ -32,6 +35,10 @@ export function getScratchpadConfig(): ScratchpadConfig {
         ? moduleKind
         : 'auto',
     nodePath,
+    runOnOpen: cfg.get<boolean>('runOnOpen', true),
+    confirmStopAfterMs: Number.isFinite(confirmStopAfterMs)
+      ? Math.max(0, Math.floor(confirmStopAfterMs))
+      : 3000,
   };
 }
 

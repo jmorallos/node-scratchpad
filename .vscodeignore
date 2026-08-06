@@ -8,6 +8,8 @@ tsconfig.json
 **/*.ts
 !dist/extension.js
 node_modules/**
-!node_modules/esbuild/**
-!node_modules/@esbuild/**
+!node_modules/esbuild-wasm/**
+node_modules/esbuild-wasm/esm/**
+node_modules/esbuild-wasm/lib/browser*
+node_modules/esbuild-wasm/**/*.d.ts
 *.vsix

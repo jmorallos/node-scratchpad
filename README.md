@@ -6,13 +6,14 @@ VS Code / Cursor extension for rapid JS/TS prototyping: open a scratchpad, type 
 
 - **Persistent pads** under `.scratchpad/` (or extension storage if no folder is open)
 - **Workspace imports** — run file lives beside the pad so `./sibling` works; Node walks up to workspace `node_modules`
-- Auto-run on edit (400ms debounce) in Node.js
+- Auto-run on edit (configurable debounce) in Node.js
 - CommonJS (`require`) and ESM (`import` / `export` / `import.meta`) — auto-detected
-- TypeScript via esbuild (source-mapped back to your buffer)
+- TypeScript via portable `esbuild-wasm` (cross-platform VSIX)
 - Inline decorations for logs (`›`) and expressions (`=`) — distinct from Error Lens
 - **Inline errors** — syntax/runtime failures mapped onto the pad line
+- Status bar shows attached/detached; click to **Run** or **Stop**
 - Output channel still streams stdout/stderr
-- **Settings** under “Node Scratchpad” (auto-run, delay, inline values/errors, output, module kind, node path)
+- **Settings** under “Node Scratchpad”
 
 ## Settings
 
@@ -25,6 +26,8 @@ VS Code / Cursor extension for rapid JS/TS prototyping: open a scratchpad, type 
 | `nodeScratchpad.showOutputOnRun` | `true` | Reveal Output on run |
 | `nodeScratchpad.moduleKind` | `auto` | `auto` / `cjs` / `esm` |
 | `nodeScratchpad.nodePath` | `node` | Node executable |
+| `nodeScratchpad.runOnOpen` | `true` | Run when a scratchpad becomes active |
+| `nodeScratchpad.confirmStopAfterMs` | `3000` | Confirm Stop after N ms (0 = never) |
 
 Toggle Auto-Run / Toggle Inline Values update the matching settings.
 
