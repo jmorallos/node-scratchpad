@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { disposeOutput } from './output';
 import { ScratchpadRunner } from './runner';
 import {
+  clearScratchpadSession,
+  detachScratchpad,
   disposeScratchpads,
   getRunnableEditor,
   isScratchpad,
@@ -9,7 +11,6 @@ import {
   openScratchpadPicker,
   revealScratchpadFolder,
   trackScratchpad,
-  untrackScratchpad,
 } from './scratchpad';
 
 let runner: ScratchpadRunner | undefined;
@@ -53,9 +54,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
     vscode.workspace.onDidCloseTextDocument((doc) => {
-      if (isScratchpad(doc)) {
-        untrackScratchpad(doc);
-      }
+      clearScratchpadSession(doc);
     }),
     vscode.commands.registerCommand('nodeScratchpad.newJavaScript', async () => {
       const editor = await openScratchpad('javascript', context);
@@ -95,6 +94,50 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         await runner?.run(editor.document);
+      }
+    ),
+    vscode.commands.registerCommand(
+      'nodeScratchpad.runSelection',
+      async () => {
+        const editor = getRunnableEditor();
+        if (!editor) {
+          vscode.window.showInformationMessage(
+            'Open a JavaScript or TypeScript file to run a selection.'
+          );
+          return;
+        }
+        const selection = editor.selection;
+        if (selection.isEmpty) {
+          vscode.window.showInformationMessage(
+            'Select some code first, then Run Selection.'
+          );
+          return;
+        }
+        const text = editor.document.getText(selection);
+        await runner?.run(editor.document, {
+          sourceOverride: text,
+          lineOffset: selection.start.line,
+        });
+      }
+    ),
+    vscode.commands.registerCommand(
+      'nodeScratchpad.detachCurrentFile',
+      () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          return;
+        }
+        const detached = detachScratchpad(editor.document);
+        runner?.clearUi(editor.document);
+        if (detached) {
+          vscode.window.showInformationMessage(
+            'Detached from Node Scratchpad (auto-run off for this file).'
+          );
+        } else {
+          vscode.window.showInformationMessage(
+            'This file is not attached to Node Scratchpad.'
+          );
+        }
       }
     ),
     vscode.commands.registerCommand('nodeScratchpad.stop', () => {

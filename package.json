@@ -2,7 +2,7 @@
   "name": "node-scratchpad",
   "displayName": "Node Scratchpad",
   "description": "Rapid JS/TS prototyping scratchpad that runs instantly in Node.js",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "publisher": "jmorallos",
   "license": "MIT",
   "engines": {
@@ -19,6 +19,8 @@
     "onCommand:nodeScratchpad.revealFolder",
     "onCommand:nodeScratchpad.run",
     "onCommand:nodeScratchpad.runCurrentFile",
+    "onCommand:nodeScratchpad.runSelection",
+    "onCommand:nodeScratchpad.detachCurrentFile",
     "onCommand:nodeScratchpad.stop",
     "onCommand:nodeScratchpad.toggleAutoRun",
     "onCommand:nodeScratchpad.toggleInlineValues",
@@ -95,6 +97,15 @@
         "icon": "$(play)"
       },
       {
+        "command": "nodeScratchpad.runSelection",
+        "title": "Node Scratchpad: Run Selection",
+        "icon": "$(debug-line-by-line)"
+      },
+      {
+        "command": "nodeScratchpad.detachCurrentFile",
+        "title": "Node Scratchpad: Detach Current File"
+      },
+      {
         "command": "nodeScratchpad.stop",
         "title": "Node Scratchpad: Stop"
       },
@@ -105,6 +116,20 @@
       {
         "command": "nodeScratchpad.toggleInlineValues",
         "title": "Node Scratchpad: Toggle Inline Values"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "nodeScratchpad.runCurrentFile",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorTextFocus && (editorLangId == javascript || editorLangId == javascriptreact || editorLangId == typescript || editorLangId == typescriptreact)"
+      },
+      {
+        "command": "nodeScratchpad.runSelection",
+        "key": "ctrl+shift+enter",
+        "mac": "cmd+shift+enter",
+        "when": "editorTextFocus && editorHasSelection && (editorLangId == javascript || editorLangId == javascriptreact || editorLangId == typescript || editorLangId == typescriptreact)"
       }
     ],
     "menus": {
@@ -120,6 +145,16 @@
           "command": "nodeScratchpad.runCurrentFile",
           "when": "editorLangId == javascript || editorLangId == javascriptreact || editorLangId == typescript || editorLangId == typescriptreact",
           "group": "navigation@9"
+        },
+        {
+          "command": "nodeScratchpad.runSelection",
+          "when": "editorHasSelection && (editorLangId == javascript || editorLangId == javascriptreact || editorLangId == typescript || editorLangId == typescriptreact)",
+          "group": "navigation@10"
+        },
+        {
+          "command": "nodeScratchpad.detachCurrentFile",
+          "when": "editorLangId == javascript || editorLangId == javascriptreact || editorLangId == typescript || editorLangId == typescriptreact",
+          "group": "navigation@11"
         }
       ]
     }

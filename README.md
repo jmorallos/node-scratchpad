@@ -35,7 +35,9 @@ Toggle Auto-Run / Toggle Inline Values update the matching settings.
 - **Node Scratchpad: Open Saved…** — pick an existing pad
 - **Node Scratchpad: Reveal Folder** — show the scratchpad directory
 - **Node Scratchpad: Run** — run the active pad or current JS/TS file
-- **Node Scratchpad: Run Current File** — attach any open JS/TS file and run it (also in editor title / right-click)
+- **Node Scratchpad: Run Current File** — attach any open JS/TS file and run it (`Ctrl+Enter` / `Cmd+Enter`)
+- **Node Scratchpad: Run Selection** — run only the highlighted code (`Ctrl+Shift+Enter` / `Cmd+Shift+Enter`)
+- **Node Scratchpad: Detach Current File** — stop auto-run / scratchpad mode for this file
 - **Node Scratchpad: Stop** — kill the current Node process
 - **Node Scratchpad: Toggle Auto-Run** — enable/disable run-on-edit
 - **Node Scratchpad: Toggle Inline Values** — show/hide cyan runtime decorations

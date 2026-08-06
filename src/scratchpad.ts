@@ -6,8 +6,11 @@ export const GLOBAL_PADS_DIRNAME = 'pads';
 
 const PAD_FILE_RE = /\.(cjs|mjs|cts|mts|js|ts)$/i;
 
-/** Untitled pads created before persistence still use this set. */
+/** Untitled / attached pads for this session. */
 const trackedPads = new Set<string>();
+
+/** Explicitly detached pads (including `.scratchpad/` files). */
+const detachedPads = new Set<string>();
 
 function docKey(doc: vscode.TextDocument): string {
   return doc.uri.toString();
@@ -43,18 +46,40 @@ export function isScratchpadUri(uri: vscode.Uri): boolean {
 }
 
 export function isScratchpad(doc: vscode.TextDocument): boolean {
+  const key = docKey(doc);
+  if (detachedPads.has(key)) {
+    return false;
+  }
   if (isScratchpadUri(doc.uri)) {
     return true;
   }
-  return trackedPads.has(docKey(doc));
+  return trackedPads.has(key);
 }
 
 export function trackScratchpad(doc: vscode.TextDocument): void {
-  trackedPads.add(docKey(doc));
+  const key = docKey(doc);
+  detachedPads.delete(key);
+  trackedPads.add(key);
 }
 
 export function untrackScratchpad(doc: vscode.TextDocument): void {
   trackedPads.delete(docKey(doc));
+}
+
+export function detachScratchpad(doc: vscode.TextDocument): boolean {
+  const key = docKey(doc);
+  if (!isScratchpad(doc) && !trackedPads.has(key)) {
+    return false;
+  }
+  trackedPads.delete(key);
+  detachedPads.add(key);
+  return true;
+}
+
+export function clearScratchpadSession(doc: vscode.TextDocument): void {
+  const key = docKey(doc);
+  trackedPads.delete(key);
+  detachedPads.delete(key);
 }
 
 function timestampSlug(d = new Date()): string {
@@ -252,4 +277,5 @@ export function getRunnableEditor(): vscode.TextEditor | undefined {
 
 export function disposeScratchpads(): void {
   trackedPads.clear();
+  detachedPads.clear();
 }

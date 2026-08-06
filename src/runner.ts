@@ -25,7 +25,7 @@ import {
 } from './output';
 import { consumeStdout, type ScratchpadValue } from './protocol';
 import { isScratchpad } from './scratchpad';
-import { identityLineMapper, type LineMapper } from './sourcemap';
+import { identityLineMapper, offsetLineMapper, type LineMapper } from './sourcemap';
 import { transpileTypeScript } from './typescript';
 
 export type RunnerStatus = 'idle' | 'running' | 'error';
@@ -145,7 +145,20 @@ export class ScratchpadRunner implements vscode.Disposable {
     }, this.autoRunDelay);
   }
 
-  async run(doc: vscode.TextDocument): Promise<void> {
+  /** Clear decorations/errors and cancel a pending auto-run. */
+  clearUi(doc: vscode.TextDocument): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = undefined;
+    }
+    this.decorations.clear(doc);
+    this.errors.clear(doc);
+  }
+
+  async run(
+    doc: vscode.TextDocument,
+    options?: { sourceOverride?: string; lineOffset?: number }
+  ): Promise<void> {
     if (!vscode.workspace.isTrusted) {
       vscode.window.showWarningMessage(
         'Node Scratchpad only runs in trusted workspaces.'
@@ -169,7 +182,14 @@ export class ScratchpadRunner implements vscode.Disposable {
 
     const started = Date.now();
     const languageId = doc.languageId;
-    const source = doc.getText();
+    const lineOffset = options?.lineOffset ?? 0;
+    const source = options?.sourceOverride ?? doc.getText();
+    if (!source.trim()) {
+      appendOutputLine('Nothing to run (empty selection or file).');
+      this.emitStatus('idle', Date.now() - started);
+      return;
+    }
+
     const moduleKind = resolveModuleKind(source, this.moduleKindPref);
     let executable = source;
     let lineMapper: LineMapper = identityLineMapper();
@@ -192,6 +212,10 @@ export class ScratchpadRunner implements vscode.Disposable {
       const instrumented = instrumentJavaScript(executable, moduleKind);
       executable = instrumented.code;
       bodyStartLine = instrumented.bodyStartLine;
+      if (lineOffset > 0) {
+        lineMapper = offsetLineMapper(lineMapper, lineOffset);
+        appendOutputLine(`— selection @ line ${lineOffset + 1} —`);
+      }
       appendOutputLine(`— mode: ${moduleKind} —`);
     } catch (err) {
       if (generation !== this.runGeneration) {
@@ -199,7 +223,15 @@ export class ScratchpadRunner implements vscode.Disposable {
       }
       const message = err instanceof Error ? err.message : String(err);
       appendOutputLine(`Prepare error:\n${message}`);
-      this.errors.apply(doc, message, '', 1, identityLineMapper());
+      this.errors.apply(
+        doc,
+        message,
+        '',
+        1,
+        lineOffset > 0
+          ? offsetLineMapper(identityLineMapper(), lineOffset)
+          : identityLineMapper()
+      );
       this.emitStatus('error', Date.now() - started);
       return;
     }

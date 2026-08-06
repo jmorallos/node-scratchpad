@@ -13,6 +13,22 @@ export function identityLineMapper(): LineMapper {
   };
 }
 
+/** Shift mapped 1-based lines by a 0-based document start line (for selections). */
+export function offsetLineMapper(
+  inner: LineMapper,
+  startLineZeroBased: number
+): LineMapper {
+  return {
+    toOriginalLine(generatedLine: number) {
+      const original = inner.toOriginalLine(generatedLine);
+      if (original === undefined) {
+        return undefined;
+      }
+      return startLineZeroBased + original;
+    },
+  };
+}
+
 export function createSourceMapLineMapper(mapJson: string): LineMapper {
   const raw = JSON.parse(mapJson) as RawSourceMap;
   const consumer = new SourceMapConsumer(raw);
