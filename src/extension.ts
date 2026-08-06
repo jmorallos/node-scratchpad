@@ -3,7 +3,7 @@ import { disposeOutput } from './output';
 import { ScratchpadRunner } from './runner';
 import {
   disposeScratchpads,
-  getActiveScratchpadEditor,
+  getRunnableEditor,
   isScratchpad,
   openScratchpad,
   openScratchpadPicker,
@@ -75,15 +75,28 @@ export function activate(context: vscode.ExtensionContext): void {
       await revealScratchpadFolder(context);
     }),
     vscode.commands.registerCommand('nodeScratchpad.run', async () => {
-      const editor = getActiveScratchpadEditor();
+      const editor = getRunnableEditor();
       if (!editor) {
         vscode.window.showInformationMessage(
-          'Open a Node Scratchpad first (New / Open Scratchpad).'
+          'Open a JavaScript or TypeScript file, or create a Node Scratchpad.'
         );
         return;
       }
       await runner?.run(editor.document);
     }),
+    vscode.commands.registerCommand(
+      'nodeScratchpad.runCurrentFile',
+      async () => {
+        const editor = getRunnableEditor();
+        if (!editor) {
+          vscode.window.showInformationMessage(
+            'Open a JavaScript or TypeScript file to run with Node Scratchpad.'
+          );
+          return;
+        }
+        await runner?.run(editor.document);
+      }
+    ),
     vscode.commands.registerCommand('nodeScratchpad.stop', () => {
       runner?.stop();
     }),

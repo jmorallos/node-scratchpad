@@ -212,6 +212,44 @@ export function getActiveScratchpadEditor(): vscode.TextEditor | undefined {
   return editor;
 }
 
+const RUNNABLE_LANGS = new Set([
+  'javascript',
+  'javascriptreact',
+  'typescript',
+  'typescriptreact',
+]);
+
+export function isRunnableDocument(doc: vscode.TextDocument): boolean {
+  if (!RUNNABLE_LANGS.has(doc.languageId)) {
+    return false;
+  }
+  if (doc.uri.scheme === 'file') {
+    const name = path.basename(doc.uri.fsPath);
+    if (name.startsWith('.sp-run-')) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Use the active JS/TS editor as a scratchpad for this session
+ * (enables Run + auto-run until the tab is closed).
+ */
+export function attachActiveFileAsScratchpad(): vscode.TextEditor | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isRunnableDocument(editor.document)) {
+    return undefined;
+  }
+  trackScratchpad(editor.document);
+  return editor;
+}
+
+/** Prefer an existing pad; otherwise attach the current JS/TS file. */
+export function getRunnableEditor(): vscode.TextEditor | undefined {
+  return getActiveScratchpadEditor() ?? attachActiveFileAsScratchpad();
+}
+
 export function disposeScratchpads(): void {
   trackedPads.clear();
 }
