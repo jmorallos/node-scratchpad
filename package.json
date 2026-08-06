@@ -1,0 +1,125 @@
+{
+  "name": "node-scratchpad",
+  "displayName": "Node Scratchpad",
+  "description": "Rapid JS/TS prototyping scratchpad that runs instantly in Node.js",
+  "version": "0.6.0",
+  "publisher": "jmorallos",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onCommand:nodeScratchpad.newJavaScript",
+    "onCommand:nodeScratchpad.newTypeScript",
+    "onCommand:nodeScratchpad.open",
+    "onCommand:nodeScratchpad.revealFolder",
+    "onCommand:nodeScratchpad.run",
+    "onCommand:nodeScratchpad.stop",
+    "onCommand:nodeScratchpad.toggleAutoRun",
+    "onCommand:nodeScratchpad.toggleInlineValues",
+    "workspaceContains:.scratchpad/**"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Node Scratchpad",
+      "properties": {
+        "nodeScratchpad.autoRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run the scratchpad after edits."
+        },
+        "nodeScratchpad.autoRunDelay": {
+          "type": "number",
+          "default": 400,
+          "minimum": 0,
+          "description": "Debounce delay in milliseconds before auto-run."
+        },
+        "nodeScratchpad.inlineValues": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show cyan inline runtime values (› for logs, = for expressions)."
+        },
+        "nodeScratchpad.inlineErrors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show syntax/runtime errors as editor diagnostics on the pad."
+        },
+        "nodeScratchpad.showOutputOnRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reveal the Node Scratchpad Output channel when a run starts."
+        },
+        "nodeScratchpad.moduleKind": {
+          "type": "string",
+          "enum": ["auto", "cjs", "esm"],
+          "default": "auto",
+          "description": "Module system for running pads. auto detects import/export."
+        },
+        "nodeScratchpad.nodePath": {
+          "type": "string",
+          "default": "node",
+          "description": "Path to the Node.js executable used to run scratchpads."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "nodeScratchpad.newJavaScript",
+        "title": "Node Scratchpad: New JavaScript"
+      },
+      {
+        "command": "nodeScratchpad.newTypeScript",
+        "title": "Node Scratchpad: New TypeScript"
+      },
+      {
+        "command": "nodeScratchpad.open",
+        "title": "Node Scratchpad: Open Saved…"
+      },
+      {
+        "command": "nodeScratchpad.revealFolder",
+        "title": "Node Scratchpad: Reveal Folder"
+      },
+      {
+        "command": "nodeScratchpad.run",
+        "title": "Node Scratchpad: Run"
+      },
+      {
+        "command": "nodeScratchpad.stop",
+        "title": "Node Scratchpad: Stop"
+      },
+      {
+        "command": "nodeScratchpad.toggleAutoRun",
+        "title": "Node Scratchpad: Toggle Auto-Run"
+      },
+      {
+        "command": "nodeScratchpad.toggleInlineValues",
+        "title": "Node Scratchpad: Toggle Inline Values"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "npm run check-types && node esbuild.js",
+    "check-types": "tsc --noEmit",
+    "watch": "node esbuild.js --watch",
+    "package": "npm run check-types && node esbuild.js --production",
+    "vscode:prepublish": "npm run package",
+    "vsix": "npm run package && vsce package --allow-missing-repository"
+  },
+  "dependencies": {
+    "acorn": "^8.18.0",
+    "esbuild": "^0.25.0",
+    "source-map-js": "^1.2.1"
+  },
+  "devDependencies": {
+    "@types/acorn": "^4.0.6",
+    "@types/node": "^20.11.5",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.3.2"
+  }
+}
