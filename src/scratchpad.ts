@@ -275,6 +275,23 @@ export function getRunnableEditor(): vscode.TextEditor | undefined {
   return getActiveScratchpadEditor() ?? attachActiveFileAsScratchpad();
 }
 
+/**
+ * Toggle attach for the active JS/TS file.
+ * @returns resulting state, or undefined if nothing runnable is open
+ */
+export function toggleAttachCurrentFile(): 'attached' | 'detached' | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isRunnableDocument(editor.document)) {
+    return undefined;
+  }
+  if (isScratchpad(editor.document)) {
+    detachScratchpad(editor.document);
+    return 'detached';
+  }
+  trackScratchpad(editor.document);
+  return 'attached';
+}
+
 export function disposeScratchpads(): void {
   trackedPads.clear();
   detachedPads.clear();

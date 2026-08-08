@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getScratchpadConfig } from './config';
 import { disposeOutput } from './output';
-import { ScratchpadRunner, type StatusUpdate } from './runner';
+import { ScratchpadRunner } from './runner';
 import {
   clearScratchpadSession,
   detachScratchpad,
@@ -11,13 +11,14 @@ import {
   openScratchpad,
   openScratchpadPicker,
   revealScratchpadFolder,
+  toggleAttachCurrentFile,
   trackScratchpad,
 } from './scratchpad';
+import { ScratchpadStatusBar } from './statusBar';
 import { disposeEsbuild } from './typescript';
 
 let runner: ScratchpadRunner | undefined;
-let statusBar: vscode.StatusBarItem | undefined;
-let lastStatus: StatusUpdate | undefined;
+let statusBar: ScratchpadStatusBar | undefined;
 let suppressRunOnOpen = 0;
 const ranOnOpen = new Set<string>();
 
@@ -50,42 +51,12 @@ function maybeRunOnOpen(doc: vscode.TextDocument): void {
   void runner?.run(doc);
 }
 
-function refreshStatusBar(): void {
-  if (!statusBar || !lastStatus) {
-    return;
-  }
-
-  const editor = vscode.window.activeTextEditor;
-  const attached = !!(editor && isScratchpad(editor.document));
-  const running = lastStatus.isRunning || lastStatus.status === 'running';
-  const auto = lastStatus.autoRun ? 'auto' : 'manual';
-  const inline = lastStatus.inlineValues ? 'inline' : 'no-inline';
-  const attach = attached ? 'attached' : 'detached';
-  const duration =
-    lastStatus.durationMs !== undefined ? ` ${lastStatus.durationMs}ms` : '';
-
-  statusBar.text = `$(${running ? 'debug-stop' : 'play'}) Scratchpad: ${lastStatus.status}${duration} [${auto}|${inline}|${attach}]`;
-  statusBar.command = running
-    ? 'nodeScratchpad.stop'
-    : 'nodeScratchpad.statusBarAction';
-  statusBar.tooltip = running
-    ? 'Stop Node Scratchpad'
-    : attached
-      ? 'Run current scratchpad (click)'
-      : 'Run current JS/TS file (click)';
-}
-
 export function activate(context: vscode.ExtensionContext): void {
   runner = new ScratchpadRunner(context);
-  statusBar = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  statusBar.show();
+  statusBar = new ScratchpadStatusBar(() => runner);
 
   const statusSub = runner.onStatusChange((update) => {
-    lastStatus = update;
-    refreshStatusBar();
+    statusBar?.setStatus(update);
   });
 
   // Re-attach to pads already open (e.g. after reload).
@@ -99,13 +70,14 @@ export function activate(context: vscode.ExtensionContext): void {
   if (active && isScratchpad(active.document)) {
     maybeRunOnOpen(active.document);
   }
+  statusBar.refresh();
 
   context.subscriptions.push(
     runner,
     statusBar,
     statusSub,
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      refreshStatusBar();
+      statusBar?.refresh();
       if (editor) {
         maybeRunOnOpen(editor.document);
       }
@@ -113,12 +85,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidOpenTextDocument((doc) => {
       if (isScratchpad(doc)) {
         trackScratchpad(doc);
+        statusBar?.refresh();
       }
     }),
     vscode.workspace.onDidCloseTextDocument((doc) => {
       clearScratchpadSession(doc);
       ranOnOpen.delete(doc.uri.toString());
-      refreshStatusBar();
+      statusBar?.refresh();
     }),
     vscode.commands.registerCommand('nodeScratchpad.newJavaScript', async () => {
       await withSuppressedRunOnOpen(async () => {
@@ -126,7 +99,7 @@ export function activate(context: vscode.ExtensionContext): void {
         ranOnOpen.add(editor.document.uri.toString());
         await runner?.run(editor.document);
       });
-      refreshStatusBar();
+      statusBar?.refresh();
     }),
     vscode.commands.registerCommand('nodeScratchpad.newTypeScript', async () => {
       await withSuppressedRunOnOpen(async () => {
@@ -134,7 +107,7 @@ export function activate(context: vscode.ExtensionContext): void {
         ranOnOpen.add(editor.document.uri.toString());
         await runner?.run(editor.document);
       });
-      refreshStatusBar();
+      statusBar?.refresh();
     }),
     vscode.commands.registerCommand('nodeScratchpad.open', async () => {
       await withSuppressedRunOnOpen(async () => {
@@ -144,7 +117,7 @@ export function activate(context: vscode.ExtensionContext): void {
           await runner?.run(editor.document);
         }
       });
-      refreshStatusBar();
+      statusBar?.refresh();
     }),
     vscode.commands.registerCommand('nodeScratchpad.revealFolder', async () => {
       await revealScratchpadFolder(context);
@@ -158,7 +131,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       await runner?.run(editor.document);
-      refreshStatusBar();
+      statusBar?.refresh();
     }),
     vscode.commands.registerCommand(
       'nodeScratchpad.runCurrentFile',
@@ -171,7 +144,7 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         await runner?.run(editor.document);
-        refreshStatusBar();
+        statusBar?.refresh();
       }
     ),
     vscode.commands.registerCommand(
@@ -179,6 +152,7 @@ export function activate(context: vscode.ExtensionContext): void {
       async () => {
         if (runner?.isRunning()) {
           await runner.stopInteractive();
+          statusBar?.refresh();
           return;
         }
         const editor = getRunnableEditor();
@@ -189,7 +163,7 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         await runner?.run(editor.document);
-        refreshStatusBar();
+        statusBar?.refresh();
       }
     ),
     vscode.commands.registerCommand(
@@ -214,7 +188,7 @@ export function activate(context: vscode.ExtensionContext): void {
           sourceOverride: text,
           lineOffset: selection.start.line,
         });
-        refreshStatusBar();
+        statusBar?.refresh();
       }
     ),
     vscode.commands.registerCommand(
@@ -226,7 +200,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }
         const detached = detachScratchpad(editor.document);
         runner?.clearUi(editor.document);
-        refreshStatusBar();
+        statusBar?.refresh();
         if (detached) {
           vscode.window.showInformationMessage(
             'Detached from Node Scratchpad (auto-run off for this file).'
@@ -238,19 +212,29 @@ export function activate(context: vscode.ExtensionContext): void {
         }
       }
     ),
+    vscode.commands.registerCommand('nodeScratchpad.toggleAttach', () => {
+      const result = toggleAttachCurrentFile();
+      const editor = vscode.window.activeTextEditor;
+      if (result === 'detached' && editor) {
+        runner?.clearUi(editor.document);
+      }
+      statusBar?.refresh();
+      if (result === undefined) {
+        vscode.window.showInformationMessage(
+          'Open a JavaScript or TypeScript file to attach.'
+        );
+      }
+    }),
     vscode.commands.registerCommand('nodeScratchpad.stop', async () => {
       await runner?.stopInteractive();
-      refreshStatusBar();
+      statusBar?.refresh();
     }),
     vscode.commands.registerCommand('nodeScratchpad.toggleAutoRun', async () => {
       if (!runner) {
         return;
       }
-      const enabled = await runner.toggleAutoRun();
-      vscode.window.showInformationMessage(
-        `Node Scratchpad auto-run ${enabled ? 'enabled' : 'disabled'}.`
-      );
-      refreshStatusBar();
+      await runner.toggleAutoRun();
+      statusBar?.refresh();
     }),
     vscode.commands.registerCommand(
       'nodeScratchpad.toggleInlineValues',
@@ -258,11 +242,8 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!runner) {
           return;
         }
-        const enabled = await runner.toggleInlineValues();
-        vscode.window.showInformationMessage(
-          `Node Scratchpad inline values ${enabled ? 'enabled' : 'disabled'}.`
-        );
-        refreshStatusBar();
+        await runner.toggleInlineValues();
+        statusBar?.refresh();
       }
     )
   );
